@@ -1,5 +1,5 @@
 import sys
-from math import pi, sin, cos
+from math import pi, sin, cos, sqrt
 
 import pygame
 from pygame.locals import *
@@ -9,6 +9,8 @@ MIN_HUD_WIDTH = 150
 HUD_COLOR = pygame.color.Color(0, 255, 0)
 HEXAGON_COLOR  = pygame.color.Color(255, 0, 0)
 EXIT_KEYS = K_ESCAPE,
+CENTER_HEXAGON = 0.15
+FIRST_ROW_COUNT = 5
 FPS = 60
 FPS_COLOR = pygame.color.Color(0, 0, 255)
 BACKGROUND_COLOR = pygame.color.Color(255, 255, 255)
@@ -23,6 +25,7 @@ class Game():
         self.active_section = -1
         self.clock = pygame.time.Clock()
         self.calculate_areas()
+        self.calculate_grid()
         self.init_sections()
         self.load_assets()
 
@@ -64,6 +67,11 @@ class Game():
         self.hud_area = pygame.Rect((0, 0), (width, height))
         self.game_area = pygame.Rect((width, 0),
                                      (RESOLUTION[0] - width, RESOLUTION[1]))
+        self.hexagon_radius = RESOLUTION[1]/2 - 20 # TODO: Make relative
+    
+    def calculate_grid(self):
+        center_radius = self.hexagon_radius * CENTER_HEXAGON
+        self.cell_size = int(center_radius * 2 * sqrt(3) / FIRST_ROW_COUNT)
     
     def update_screen(self):
         pygame.display.update()
@@ -78,18 +86,19 @@ class Game():
         pygame.draw.rect(self.surface, HUD_COLOR, self.hud_area)
     
     def draw_overview(self):
-        main_radius = RESOLUTION[1]/2 - 20
-        coords = self.calculate_hexagon(self.game_area.center, main_radius)
+        coords = self.calculate_hexagon(self.game_area.center, self.hexagon_radius)
         pygame.draw.polygon(self.surface, HEXAGON_COLOR, coords)
-        pygame.draw.circle(self.surface, BLACK, self.game_area.center, main_radius, 1)
         
         for vertex in coords:
             pygame.draw.aaline(self.surface, BLACK, vertex, self.game_area.center)
             
-        small_radius = main_radius * 0.1
+        small_radius = int(self.hexagon_radius * CENTER_HEXAGON)
         coords2 = self.calculate_hexagon(self.game_area.center, small_radius)
         pygame.draw.polygon(self.surface, BLACK, coords2)
-        return
+        
+        for g_radius in range(small_radius, self.hexagon_radius, self.cell_size):
+            grid_coords = self.calculate_hexagon(self.game_area.center, g_radius)
+            pygame.draw.polygon(self.surface, BLACK, grid_coords, 1)
     
     def calculate_hexagon(self, center, radius):
         dtheta = pi/3
@@ -127,4 +136,8 @@ def main():
 	return 0
 
 if __name__ == "__main__":
-	sys.exit(main())
+    try:
+        main()
+    except Exception as e:
+        print e
+        raw_input()
