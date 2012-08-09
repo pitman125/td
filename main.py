@@ -1,9 +1,12 @@
 import sys
+from math import pi, sin, cos
 
 import pygame
 from pygame.locals import *
 
-RESOLUTION = 640, 480
+RESOLUTION = 1024, 700
+MIN_HUD_WIDTH = 150
+HUD_COLOR = pygame.color.Color(0, 255, 0)
 EXIT_KEYS = K_ESCAPE,
 FPS = 60
 FPS_COLOR = pygame.color.Color(0, 0, 255)
@@ -14,7 +17,10 @@ class Game():
     def __init__(self, surface):
         self.surface = surface
         self.running = True
+        self.active_section = -1
         self.clock = pygame.time.Clock()
+        self.calculate_areas()
+        self.init_sections()
         self.load_assets()
 
     def mainloop(self):
@@ -38,22 +44,68 @@ class Game():
 
     def draw_game(self):
         self.surface.fill(BACKGROUND_COLOR)
+        if self.active_section == -1:
+            self.draw_overview()
+        else:
+            self.draw_zoomed()
+        self.draw_hud()
         if DEBUG:
             self.draw_fps()
-        pass
+    
+    def calculate_areas(self):
+        screen_width = RESOLUTION[0]
+        dynamic = int(screen_width * 0.05)
+        width = MIN_HUD_WIDTH if dynamic < MIN_HUD_WIDTH else dynamic
+        
+        height = RESOLUTION[1]
+        self.hud_area = pygame.Rect((0, 0), (width, height))
+        self.game_area = pygame.Rect((width, 0),
+                                     (RESOLUTION[0] - width, RESOLUTION[1]))
     
     def update_screen(self):
         pygame.display.update()
         
     def draw_fps(self):
-        msg = "FPS: %s" % self.clock.get_fps()
+        msg = "FPS: %02d" % self.clock.get_fps()
         rendered = self.font.render(msg, False, FPS_COLOR)
         rect = rendered.get_rect()
         self.surface.blit(rendered, rect)
+        
+    def draw_hud(self):
+        pygame.draw.rect(self.surface, HUD_COLOR, self.hud_area)
+    
+    def draw_overview(self):
+        coords = self.calculate_hexagon(self.game_area.center)
+        pygame.draw.polygon(self.surface, pygame.color.Color(0, 20, 30), coords)
+        return
+    
+    def calculate_hexagon(self, center):
+        dtheta = pi/3
+        theta = pi/2
+        coords = []
+        r = RESOLUTION[1]/2 - 20
+        for _ in range(6):
+            delta = int(r * sin(theta)), int(r * cos(theta))
+            coords.append((center[0] + delta[0],
+                           center[1] + delta[1]))
+            theta += dtheta
+        return coords
+    
+    def draw_zoomed(self):
+        zoomed = self.sections[self.active_section]
+        # TODO: This
     
     def load_assets(self):
-        self.font = pygame.font.Font("./font.ttf", 32)
+        self.font = pygame.font.Font("./font.ttf", 16)
+    
+    def init_sections(self):
+        self.sections = []
+        for _ in range(6):
+            self.sections.append(Section(self))
 
+class Section():
+    def __init__(self, game):
+        self.game = game
 
 def main():
 	pygame.init()
