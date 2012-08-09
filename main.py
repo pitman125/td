@@ -7,11 +7,14 @@ from pygame.locals import *
 RESOLUTION = 1024, 700
 MIN_HUD_WIDTH = 150
 HUD_COLOR = pygame.color.Color(0, 255, 0)
+HEXAGON_COLOR  = pygame.color.Color(255, 0, 0)
 EXIT_KEYS = K_ESCAPE,
 FPS = 60
 FPS_COLOR = pygame.color.Color(0, 0, 255)
 BACKGROUND_COLOR = pygame.color.Color(255, 255, 255)
 DEBUG = True
+
+BLACK = pygame.color.Color(0, 0, 0)
 
 class Game():
     def __init__(self, surface):
@@ -75,15 +78,24 @@ class Game():
         pygame.draw.rect(self.surface, HUD_COLOR, self.hud_area)
     
     def draw_overview(self):
-        coords = self.calculate_hexagon(self.game_area.center)
-        pygame.draw.polygon(self.surface, pygame.color.Color(0, 20, 30), coords)
+        main_radius = RESOLUTION[1]/2 - 20
+        coords = self.calculate_hexagon(self.game_area.center, main_radius)
+        pygame.draw.polygon(self.surface, HEXAGON_COLOR, coords)
+        pygame.draw.circle(self.surface, BLACK, self.game_area.center, main_radius, 1)
+        
+        for vertex in coords:
+            pygame.draw.aaline(self.surface, BLACK, vertex, self.game_area.center)
+            
+        small_radius = main_radius * 0.1
+        coords2 = self.calculate_hexagon(self.game_area.center, small_radius)
+        pygame.draw.polygon(self.surface, BLACK, coords2)
         return
     
-    def calculate_hexagon(self, center):
+    def calculate_hexagon(self, center, radius):
         dtheta = pi/3
         theta = pi/2
         coords = []
-        r = RESOLUTION[1]/2 - 20
+        r = radius
         for _ in range(6):
             delta = int(r * sin(theta)), int(r * cos(theta))
             coords.append((center[0] + delta[0],
