@@ -57,49 +57,56 @@ class Game():
         self.draw_hud()
         if DEBUG:
             self.draw_fps()
-    
+
     def calculate_areas(self):
         screen_width = RESOLUTION[0]
         dynamic = int(screen_width * 0.05)
         width = MIN_HUD_WIDTH if dynamic < MIN_HUD_WIDTH else dynamic
-        
+
         height = RESOLUTION[1]
         self.hud_area = pygame.Rect((0, 0), (width, height))
         self.game_area = pygame.Rect((width, 0),
                                      (RESOLUTION[0] - width, RESOLUTION[1]))
-        self.hexagon_radius = RESOLUTION[1]/2 - 20 # TODO: Make relative
-    
+        self.outer_radius = RESOLUTION[1]/2 - 20 # TODO: Make relative
+        self.inner_radius = int(self.outer_radius * CENTER_HEXAGON)
+
     def calculate_grid(self):
-        center_radius = self.hexagon_radius * CENTER_HEXAGON
-        self.cell_size = int(center_radius * 2 * sqrt(3) / FIRST_ROW_COUNT)
-    
+        self.cell_size = int(self.inner_radius * 2 * sqrt(3) / FIRST_ROW_COUNT)
+        self.row_count = (self.outer_radius - self.inner_radius) / self.cell_size
+
+    def cells_on_row(self, n):
+        return int((self.inner_radius + n * self.cell_size) * 2 * sqrt(3)) / self.cell_size
+
     def update_screen(self):
         pygame.display.update()
-        
+
     def draw_fps(self):
         msg = "FPS: %02d" % self.clock.get_fps()
         rendered = self.font.render(msg, False, FPS_COLOR)
         rect = rendered.get_rect()
         self.surface.blit(rendered, rect)
-        
+
     def draw_hud(self):
         pygame.draw.rect(self.surface, HUD_COLOR, self.hud_area)
-    
+
     def draw_overview(self):
-        coords = self.calculate_hexagon(self.game_area.center, self.hexagon_radius)
+        coords = self.calculate_hexagon(self.game_area.center,
+                                        self.outer_radius)
         pygame.draw.polygon(self.surface, HEXAGON_COLOR, coords)
-        
-        for vertex in coords:
-            pygame.draw.aaline(self.surface, BLACK, vertex, self.game_area.center)
-            
-        small_radius = int(self.hexagon_radius * CENTER_HEXAGON)
-        coords2 = self.calculate_hexagon(self.game_area.center, small_radius)
+
+        for section in self.sections:
+            section.draw_overview()
+
+        coords2 = self.calculate_hexagon(self.game_area.center,
+                                         self.inner_radius)
         pygame.draw.polygon(self.surface, BLACK, coords2)
-        
-        for g_radius in range(small_radius, self.hexagon_radius, self.cell_size):
-            grid_coords = self.calculate_hexagon(self.game_area.center, g_radius)
+
+        for g_radius in range(self.inner_radius, self.outer_radius,
+                              self.cell_size):
+            grid_coords = self.calculate_hexagon(self.game_area.center,
+                                                 g_radius)
             pygame.draw.polygon(self.surface, BLACK, grid_coords, 1)
-    
+
     def calculate_hexagon(self, center, radius):
         dtheta = pi/3
         theta = pi/2
@@ -111,33 +118,57 @@ class Game():
                            center[1] + delta[1]))
             theta += dtheta
         return coords
-    
+
     def draw_zoomed(self):
         zoomed = self.sections[self.active_section]
         # TODO: This
-    
+
     def load_assets(self):
         self.font = pygame.font.Font("./font.ttf", 16)
-    
+
     def init_sections(self):
         self.sections = []
-        for _ in range(6):
-            self.sections.append(Section(self))
+        for i in range(6):
+            self.sections.append(Section(self, i * pi/3 + pi/2))
 
 class Section():
-    def __init__(self, game):
+    def __init__(self, game, angle):
         self.game = game
+        self.angle = angle
+        self.create_cells()
+        for t in self.cells:
+            for _ in t:
+                print ".",
+            print ""
+
+    def create_cells(self):
+        self.cells = []
+        for x in range(self.game.row_count):
+            row = [Cell(self, x, y) for y in range(self.game.cells_on_row(x))]
+            self.cells.append(row)
+
+    def draw_overview(self):
+        cx, cy = self.game.game_area.center
+        vx = cx + self.game.outer_radius * sin(self.angle)
+        vy = cy + self.game.outer_radius * cos(self.angle)
+        pygame.draw.aaline(self.game.surface,
+                           BLACK, (vx, vy), (cx, cy))
+
+class Cell():
+    def __init__(self, section, x, y):
+        self.section = section
+        self.x = x
+        self.y = y
+
+    def draw_overview(self):
+        return
 
 def main():
-	pygame.init()
+        pygame.init()
 
-	game = Game(pygame.display.set_mode(RESOLUTION))
-	game.mainloop()
-	return 0
+        game = Game(pygame.display.set_mode(RESOLUTION))
+        game.mainloop()
+        return 0
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print e
-        raw_input()
+    main()
